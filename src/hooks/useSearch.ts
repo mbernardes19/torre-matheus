@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { createTorreService } from "@/src/services";
 import type {
   SearchOpportunitiesResponse,
@@ -28,8 +28,8 @@ export interface UseSearchReturn {
 
 export function useSearch({
   initialSearchTerm = "",
-  debounceMs = 300,
 }: UseSearchProps = {}): UseSearchReturn {
+  const isInitializedRef = useRef(false);
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [results, setResults] = useState<SearchOpportunitiesResponse | null>(
     null
@@ -37,6 +37,7 @@ export function useSearch({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+
   const updateURL = useCallback((term: string, cursor: string | null) => {
     const params = new URLSearchParams();
     if (term) {
@@ -47,7 +48,6 @@ export function useSearch({
     }
     const queryString = params.toString();
     const newUrl = queryString ? `?${queryString}` : "/";
-    //   router.replace(newUrl, { scroll: false });
     history.replaceState(null, "", newUrl);
   }, []);
 
@@ -110,13 +110,23 @@ export function useSearch({
     [updateURL]
   );
 
+  // Initialize from URL parameters on mount
   useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      searchOpportunities(searchTerm, null);
-    }, debounceMs);
+    if (!isInitializedRef.current && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlSearchTerm = params.get("q");
+      const urlCursor = params.get("cursor");
 
-    return () => clearTimeout(debounceTimer);
-  }, [searchTerm, searchOpportunities, debounceMs]);
+      if (urlSearchTerm) {
+        setSearchTerm(urlSearchTerm);
+        // If there's a cursor, make the request immediately with it
+        if (urlCursor) {
+          searchOpportunities(urlSearchTerm, urlCursor);
+        }
+      }
+      isInitializedRef.current = true;
+    }
+  }, [searchOpportunities]);
 
   return {
     searchTerm,
