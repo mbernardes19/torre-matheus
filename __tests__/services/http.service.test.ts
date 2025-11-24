@@ -219,6 +219,8 @@ describe("HttpService", () => {
         ok: false,
         status: 404,
         statusText: "Not Found",
+        json: async () => ({}),
+        headers: new Headers({ "content-type": "application/json" }),
       });
 
       const service = createHttpService();

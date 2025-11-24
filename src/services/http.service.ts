@@ -29,6 +29,14 @@ export interface HttpService {
   delete: <T = unknown>(url: string, config?: RequestConfig) => Promise<T>;
 }
 
+const getErrorMessage = (errorMessage: string) => {
+  return typeof window !== "undefined"
+    ? errorMessage
+    : process.env.NODE_ENV === "development"
+    ? errorMessage
+    : "";
+};
+
 export function createHttpService(config: HttpServiceConfig = {}): HttpService {
   const {
     baseURL = "",
@@ -87,8 +95,14 @@ export function createHttpService(config: HttpServiceConfig = {}): HttpService {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        const parsedResponse = await response.json();
+        const errorMessage = parsedResponse
+          ? "- " + JSON.stringify(parsedResponse)
+          : "";
         throw new Error(
-          `HTTP Error: ${response.status} ${response.statusText}`
+          `HTTP Error: ${response.status} ${
+            response.statusText
+          } ${getErrorMessage(errorMessage)}`
         );
       }
 
