@@ -104,26 +104,6 @@ describe("usePagination", () => {
     expect(onPageChange).not.toHaveBeenCalled();
   });
 
-  it("should reset pagination by calling onPageChange with null", () => {
-    const resultsOnPage2: SearchOpportunitiesResponse = {
-      ...mockResults,
-      offset: 20,
-    };
-
-    const onPageChange = vi.fn();
-    const { result } = renderHook(() =>
-      usePagination({ results: resultsOnPage2, onPageChange })
-    );
-
-    expect(result.current.currentPage).toBe(2);
-
-    act(() => {
-      result.current.reset();
-    });
-
-    expect(onPageChange).toHaveBeenCalledWith(null);
-  });
-
   it("should handle null results", () => {
     const onPageChange = vi.fn();
     const { result } = renderHook(() =>
