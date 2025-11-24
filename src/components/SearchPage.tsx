@@ -1,23 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createTorreService } from "@/src/services";
-import type { Opportunity } from "@/src/services";
+import type {
+  SearchOpportunitiesResponse,
+  SearchOpportunitiesParams,
+} from "@/src/services";
 import { SearchResultItem } from "./SearchResultItem";
+import { Pagination } from "./Pagination";
+import { usePagination } from "@/src/hooks/usePagination";
 
 const torreService = createTorreService();
 
 export function SearchPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [results, setResults] = useState<Opportunity[]>([]);
+  const [results, setResults] = useState<SearchOpportunitiesResponse | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
 
-  useEffect(() => {
-    const searchOpportunities = async () => {
-      if (!searchTerm.trim()) {
-        setResults([]);
+  const searchOpportunities = useCallback(
+    async (
+      term: string,
+      cursor: string | null = null,
+      type?: "next" | "previous"
+    ) => {
+      if (!term.trim()) {
+        setResults(null);
         setTotal(0);
         return;
       }
@@ -26,41 +37,66 @@ export function SearchPage() {
       setError(null);
 
       try {
-        const response = await torreService.searchOpportunities({
-          and: [
-            {
-              keywords: {
-                term: searchTerm,
-                locale: "en",
-              },
-            },
-            {
-              status: {
-                code: "open",
-              },
-            },
-          ],
-        });
+        const params: SearchOpportunitiesParams = cursor
+          ? type === "previous"
+            ? { before: cursor }
+            : { after: cursor }
+          : {};
 
-        setResults(response.results);
+        const response = await torreService.searchOpportunities(
+          {
+            and: [
+              {
+                keywords: {
+                  term: term,
+                  locale: "en",
+                },
+              },
+              {
+                status: {
+                  code: "open",
+                },
+              },
+            ],
+          },
+          params
+        );
+
+        setResults(response);
         setTotal(response.total);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to search opportunities"
         );
-        setResults([]);
+        setResults(null);
         setTotal(0);
       } finally {
         setIsLoading(false);
       }
-    };
+    },
+    []
+  );
 
+  useEffect(() => {
     const debounceTimer = setTimeout(() => {
-      searchOpportunities();
+      searchOpportunities(searchTerm, null);
     }, 300);
 
     return () => clearTimeout(debounceTimer);
-  }, [searchTerm]);
+  }, [searchTerm, searchOpportunities]);
+
+  const handlePageChange = useCallback(
+    (type: "next" | "previous", cursor: string | null) => {
+      searchOpportunities(searchTerm, cursor, type);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [searchTerm, searchOpportunities]
+  );
+
+  const pagination = usePagination({
+    results,
+    onPageChange: handlePageChange,
+  });
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -98,7 +134,9 @@ export function SearchPage() {
                     <>
                       Found <span className="font-semibold">{total}</span>{" "}
                       {total === 1 ? "opportunity" : "opportunities"}
-                      {results.length < total && ` (showing ${results.length})`}
+                      {results &&
+                        results?.results.length < total &&
+                        ` (showing ${results?.results.length})`}
                     </>
                   ) : (
                     "No opportunities found"
@@ -119,12 +157,15 @@ export function SearchPage() {
 
         {/* Results List */}
         <div className="space-y-4">
-          {isLoading && searchTerm && results.length === 0 ? (
+          {isLoading &&
+          searchTerm &&
+          results &&
+          results.results.length === 0 ? (
             <div className="flex items-center justify-center py-12">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-50" />
             </div>
           ) : (
-            results.map((opportunity) => (
+            results?.results.map((opportunity) => (
               <SearchResultItem
                 key={opportunity.id}
                 opportunity={opportunity}
@@ -133,27 +174,37 @@ export function SearchPage() {
           )}
         </div>
 
-        {/* Empty State */}
-        {!searchTerm && !isLoading && results.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <svg
-              className="mb-4 h-16 w-16 text-zinc-300 dark:text-zinc-700"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            <p className="text-lg font-medium text-zinc-600 dark:text-zinc-400">
-              Start typing to search for opportunities
-            </p>
+        {/* Pagination */}
+        {results && results.results.length > 0 && (
+          <div className="mt-6">
+            <Pagination pagination={pagination} isLoading={isLoading} />
           </div>
         )}
+
+        {/* Empty State */}
+        {!searchTerm &&
+          !isLoading &&
+          results &&
+          results.results.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <svg
+                className="mb-4 h-16 w-16 text-zinc-300 dark:text-zinc-700"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <p className="text-lg font-medium text-zinc-600 dark:text-zinc-400">
+                Start typing to search for opportunities
+              </p>
+            </div>
+          )}
       </div>
     </div>
   );
