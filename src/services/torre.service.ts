@@ -64,6 +64,8 @@ export interface SearchOpportunitiesParams {
   contextFeature?: string;
   offset?: number;
   aggregate?: boolean;
+  after?: string;
+  before?: string;
 }
 
 export interface Opportunity {
@@ -106,6 +108,10 @@ export interface SearchOpportunitiesResponse {
   size: number;
   aggregators?: Record<string, unknown>;
   results: Opportunity[];
+  pagination?: {
+    previous: string | null;
+    next: string | null;
+  };
 }
 
 export interface TorreService {
@@ -142,6 +148,8 @@ export function createTorreService(): TorreService {
       queryParams.offset = params.offset.toString();
     if (params.aggregate !== undefined)
       queryParams.aggregate = params.aggregate.toString();
+    if (params.after) queryParams.after = params.after;
+    if (params.before) queryParams.before = params.before;
 
     return queryParams;
   }
@@ -151,6 +159,8 @@ export function createTorreService(): TorreService {
     params?: SearchOpportunitiesParams
   ): Promise<SearchOpportunitiesResponse> {
     const queryParams = buildSearchParams(params);
+    console.log("=== params", params);
+    console.log("=== queryParams", queryParams);
 
     return httpService.post<SearchOpportunitiesResponse>(
       "/opportunities/_search",
