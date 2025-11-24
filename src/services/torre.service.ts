@@ -77,6 +77,7 @@ export interface Opportunity {
   }>;
   locations?: string[];
   remote?: boolean;
+  commitment?: string;
   compensation?: {
     minAmount?: number;
     maxAmount?: number;
@@ -155,7 +156,12 @@ export function createTorreService(): TorreService {
       "/opportunities/_search",
       request,
       {
-        params: queryParams,
+        params: {
+          size: "10",
+          currency: "USD",
+          lang: "en",
+          ...queryParams,
+        },
       }
     );
   }
