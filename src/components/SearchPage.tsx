@@ -1,89 +1,22 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { createTorreService } from "@/src/services";
-import type {
-  SearchOpportunitiesResponse,
-  SearchOpportunitiesParams,
-} from "@/src/services";
+import { useCallback } from "react";
 import { SearchResultItem } from "./SearchResultItem";
 import { Pagination } from "./Pagination";
 import { usePagination } from "@/src/hooks/usePagination";
 
-const torreService = createTorreService();
+import { useSearch } from "@/src/hooks/useSearch";
 
 export function SearchPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [results, setResults] = useState<SearchOpportunitiesResponse | null>(
-    null
-  );
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [total, setTotal] = useState(0);
-
-  const searchOpportunities = useCallback(
-    async (
-      term: string,
-      cursor: string | null = null,
-      type?: "next" | "previous"
-    ) => {
-      if (!term.trim()) {
-        setResults(null);
-        setTotal(0);
-        return;
-      }
-
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const params: SearchOpportunitiesParams = cursor
-          ? type === "previous"
-            ? { before: cursor }
-            : { after: cursor }
-          : {};
-
-        const response = await torreService.searchOpportunities(
-          {
-            and: [
-              {
-                keywords: {
-                  term: term,
-                  locale: "en",
-                },
-              },
-              {
-                status: {
-                  code: "open",
-                },
-              },
-            ],
-          },
-          params
-        );
-
-        setResults(response);
-        setTotal(response.total);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to search opportunities"
-        );
-        setResults(null);
-        setTotal(0);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    []
-  );
-
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      searchOpportunities(searchTerm, null);
-    }, 300);
-
-    return () => clearTimeout(debounceTimer);
-  }, [searchTerm, searchOpportunities]);
+  const {
+    searchTerm,
+    setSearchTerm,
+    results,
+    isLoading,
+    error,
+    total,
+    searchOpportunities,
+  } = useSearch();
 
   const handlePageChange = useCallback(
     (type: "next" | "previous", cursor: string | null) => {
